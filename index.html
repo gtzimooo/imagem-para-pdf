@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformar Fotos em PDF</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .drop-zone { border: 2px dashed #cbd5e1; transition: all 0.3s ease; }
+        .drop-zone.active { border-color: #3b82f6; background-color: #eff6ff; }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+
+    <nav class="bg-white border-b border-slate-200 py-4 mb-8">
+        <div class="max-w-4xl mx-auto px-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-blue-600 flex items-center gap-2">
+                <i class="fas fa-file-pdf"></i> FotoTexto PDF
+            </h1>
+            <span class="text-xs text-slate-500 font-medium bg-slate-100 px-2 py-1 rounded">V2.5 Flash</span>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto px-4 pb-20">
+        <!-- Step 1: Upload -->
+        <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+            <h2 class="text-lg font-semibold mb-4">1. Carregar Fotos do Caderno</h2>
+            <div id="dropZone" class="drop-zone p-10 rounded-xl text-center cursor-pointer mb-4">
+                <i class="fas fa-cloud-upload-alt text-4xl text-slate-400 mb-3"></i>
+                <p class="text-slate-600">Arraste fotos aqui ou clique para selecionar</p>
+                <input type="file" id="fileInput" class="hidden" accept="image/*" multiple>
+            </div>
+            <div id="previewContainer" class="flex flex-wrap gap-3 mb-4"></div>
+            <button id="processBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition disabled:opacity-50 flex justify-center items-center gap-2" disabled>
+                <span>Extrair Texto com IA</span>
+            </button>
+        </section>
+
+        <!-- Step 2: Editor -->
+        <section id="editorSection" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hidden">
+            <h2 class="text-lg font-semibold mb-4 flex justify-between items-center">
+                2. Revisar Texto Extraído
+                <div id="loadingIndicator" class="hidden flex items-center gap-2 text-sm font-normal text-blue-600">
+                    <div class="loader"></div> Processando...
+                </div>
+            </h2>
+            <textarea id="textContent" class="w-full h-96 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none mb-6 text-slate-700 leading-relaxed" placeholder="O texto extraído aparecerá aqui..."></textarea>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button id="downloadBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition flex justify-center items-center gap-2">
+                    <i class="fas fa-file-export"></i> Baixar PDF Formatado
+                </button>
+                <button id="copyBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition flex justify-center items-center gap-2">
+                    <i class="fas fa-copy"></i> Copiar Texto
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const apiKey = ""; // Chave injetada pelo ambiente
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const previewContainer = document.getElementById('previewContainer');
+        const processBtn = document.getElementById('processBtn');
+        const editorSection = document.getElementById('editorSection');
+        const textContent = document.getElementById('textContent');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const copyBtn = document.getElementById('copyBtn');
+
+        let selectedFiles = [];
+
+        // UI Helpers
+        const showToast = (msg) => {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-lg z-50 text-sm';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        };
+
+        // File Selection Logic
+        dropZone.onclick = () => fileInput.click();
+        
+        fileInput.onchange = (e) => handleFiles(e.target.files);
+
+        function handleFiles(files) {
+            selectedFiles = [...selectedFiles, ...Array.from(files)];
+            updatePreview();
+            processBtn.disabled = selectedFiles.length === 0;
+        }
+
+        function updatePreview() {
+            previewContainer.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.className = 'relative w-20 h-20 group';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" class="w-full h-full object-cover rounded-lg border border-slate-200 shadow-sm">
+                        <button onclick="removeFile(${index})" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center shadow-md">✕</button>
+                    `;
+                    previewContainer.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        window.removeFile = (index) => {
+            selectedFiles.splice(index, 1);
+            updatePreview();
+            processBtn.disabled = selectedFiles.length === 0;
+        };
+
+        // API Interaction
+        async function fetchWithRetry(url, options, retries = 5) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) return await response.json();
+                    if (response.status !== 429 && response.status < 500) break;
+                } catch (e) {}
+                await new Promise(res => setTimeout(res, Math.pow(2, i) * 1000));
+            }
+            throw new Error("Falha na conexão com a IA após várias tentativas.");
+        }
+
+        processBtn.onclick = async () => {
+            if (selectedFiles.length === 0) return;
+            
+            processBtn.disabled = true;
+            editorSection.classList.remove('hidden');
+            loadingIndicator.classList.remove('hidden');
+            textContent.value = "Analisando imagens e transcrevendo conteúdo...";
+            
+            try {
+                let fullText = "";
+                
+                for (const file of selectedFiles) {
+                    const base64Data = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.readAsDataURL(file);
+                    });
+
+                    const payload = {
+                        contents: [{
+                            role: "user",
+                            parts: [
+                                { text: "Você é um assistente de transcrição. Transcreva o texto manuscrito desta foto de caderno de forma fiel e organizada. Não inclua comentários extras, apenas o texto do caderno." },
+                                { inlineData: { mimeType: file.type, data: base64Data } }
+                            ]
+                        }]
+                    };
+
+                    const result = await fetchWithRetry(
+                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        }
+                    );
+
+                    fullText += result.candidates?.[0]?.content?.parts?.[0]?.text + "\n\n---\n\n";
+                }
+
+                textContent.value = fullText.replace(/---\n\n$/, "").trim();
+            } catch (error) {
+                textContent.value = "Erro ao processar: " + error.message;
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                processBtn.disabled = false;
+            }
+        };
+
+        // Export Actions
+        copyBtn.onclick = () => {
+            const text = textContent.value;
+            const tempInput = document.createElement("textarea");
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            showToast("Texto copiado para a área de transferência!");
+        };
+
+        downloadBtn.onclick = () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const margin = 20;
+            const width = doc.internal.pageSize.getWidth() - (margin * 2);
+            const lines = doc.splitTextToSize(textContent.value, width);
+            
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(12);
+            doc.text(lines, margin, margin);
+            doc.save("Trabalho_Transcrito.pdf");
+            showToast("PDF gerado com sucesso!");
+        };
+
+    </script>
+</body>
+</html>
