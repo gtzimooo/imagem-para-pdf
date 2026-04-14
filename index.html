@@ -1,98 +1,101 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Acadêmico - Versão Final</title>
+    <title>Gerador de PDF Académico Final</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:ital,wght@0,400;0,700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Lora:wght@400;700&display=swap');
         
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
 
-        /* Dimensões reais A4 em pixels (96 DPI) */
-        .a4-page {
-            width: 794px; /* 210mm */
-            height: 1123px; /* 297mm */
+        /* Simulação real de A4 */
+        .page-preview {
+            width: 210mm;
+            height: 297mm;
             background: white;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             margin: 20px auto;
-            position: relative;
-            padding: 25mm; /* Margem padrão ABNT */
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
+            border: 1px solid #e2e8f0;
         }
 
-        .editor-content {
+        .editor-area {
             width: 100%;
             height: 100%;
-            overflow: hidden;
+            outline: none;
             word-wrap: break-word;
             white-space: pre-wrap;
-            line-height: 1.8; /* Espaçamento maior para preencher melhor */
-            outline: none;
             color: #1a1a1a;
+            overflow: hidden;
         }
 
-        .overflow-error { border: 2px solid #ef4444 !important; }
+        /* Feedback de erro se o texto sair da folha */
+        .page-over { border: 3px solid #f87171 !important; }
 
-        @media (max-width: 850px) {
-            .a4-page {
-                transform: scale(0.45);
+        @media (max-width: 220mm) {
+            .page-preview {
+                transform: scale(0.4);
                 transform-origin: top center;
-                margin-bottom: -600px;
+                margin-bottom: -160mm;
             }
         }
     </style>
 </head>
 <body class="flex flex-col md:flex-row min-h-screen">
 
-    <!-- Menu Lateral -->
-    <aside class="w-full md:w-72 bg-slate-900 text-white p-6 flex flex-col gap-6 z-20">
+    <!-- Painel de Ajustes -->
+    <aside class="w-full md:w-80 bg-slate-900 text-white p-6 flex flex-col gap-6 z-30 border-r border-slate-700">
         <div>
-            <h1 class="text-xl font-bold text-blue-400">PDF Acadêmico</h1>
-            <p class="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Ajuste Fino 1:1</p>
+            <h1 class="text-xl font-bold text-blue-400">PDF Académico</h1>
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest">Controlo de Espaçamento 1:1</p>
         </div>
 
-        <div class="space-y-4">
+        <div class="space-y-5">
             <div>
-                <label class="text-xs font-semibold text-slate-500 block mb-1">Tipo de Letra</label>
-                <select id="fontSelect" class="w-full bg-slate-800 rounded p-2 text-sm outline-none border border-slate-700">
-                    <option value="times">Times New Roman (Recomendado)</option>
-                    <option value="helvetica">Arial</option>
-                </select>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-xs font-semibold text-slate-500 block mb-1">Tamanho</label>
-                    <input type="number" id="fontSize" value="13" class="w-full bg-slate-800 rounded p-2 text-sm border border-slate-700">
-                </div>
-                <div>
-                    <label class="text-xs font-semibold text-slate-500 block mb-1">Margem (mm)</label>
-                    <input type="number" id="marginSize" value="25" class="w-full bg-slate-800 rounded p-2 text-sm border border-slate-700">
+                <label class="text-xs font-bold text-slate-400 block mb-2">Tamanho da Letra</label>
+                <input type="range" id="fontSize" min="10" max="20" value="13" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                <div class="flex justify-between text-[10px] mt-1 text-slate-500">
+                    <span>10pt</span>
+                    <span id="fontSizeVal">13pt</span>
+                    <span>20pt</span>
                 </div>
             </div>
 
-            <div id="statusIndicator" class="p-3 rounded text-[11px] font-bold text-center">
-                Verificando espaço...
+            <div>
+                <label class="text-xs font-bold text-slate-400 block mb-2">Espaçamento entre Linhas</label>
+                <input type="range" id="lineHeight" min="1" max="3" step="0.1" value="1.8" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                <div class="flex justify-between text-[10px] mt-1 text-slate-500">
+                    <span>Simples</span>
+                    <span id="lineHeightVal">1.8</span>
+                    <span>Triplo</span>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-xs font-bold text-slate-400 block mb-2">Margem Lateral (mm)</label>
+                <input type="number" id="marginSize" value="25" class="w-full bg-slate-800 rounded p-2 text-sm border border-slate-700 focus:border-blue-500 outline-none">
+            </div>
+
+            <div id="status" class="p-3 rounded text-[11px] font-bold text-center bg-green-500/10 text-green-400 border border-green-500/30">
+                <i class="fas fa-check-circle mr-1"></i> O texto cabe perfeitamente
             </div>
         </div>
 
-        <div class="mt-auto space-y-3">
-            <button id="downloadBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
-                <i class="fas fa-file-pdf text-lg"></i> CRIAR PDF AGORA
-            </button>
-        </div>
+        <button id="downloadBtn" class="mt-auto w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-xl transition-all flex justify-center items-center gap-2">
+            <i class="fas fa-file-pdf"></i> DESCARREGAR PDF
+        </button>
     </aside>
 
-    <!-- Visualização -->
-    <section class="flex-1 overflow-y-auto p-4 flex flex-col items-center">
-        <div class="a4-page" id="pageFrame">
-            <div id="editor" class="editor-content" contenteditable="true" spellcheck="false">
+    <!-- Visualização da Folha -->
+    <section class="flex-1 overflow-y-auto p-4 flex flex-col items-center bg-slate-100">
+        <div class="page-preview" id="pagePreview">
+            <div id="editor" class="editor-area" contenteditable="true" spellcheck="false">
 UNIVERSIDADE FEDERAL DO MARANHÃO
 CURSO: LICENCIATURA EM EDUCAÇÃO ESCOLAR QUILOMBOLA
 DISCIPLINA: FILOSOFIA DA ANCESTRALIDADE E EDUCAÇÃO
@@ -125,66 +128,72 @@ CURSISTA: MARIA DE JESUS DA SILVA PEREIRA
     <script>
         const { jsPDF } = window.jspdf;
         const editor = document.getElementById('editor');
-        const pageFrame = document.getElementById('pageFrame');
-        const fontSelect = document.getElementById('fontSelect');
+        const pagePreview = document.getElementById('pagePreview');
         const fontSizeInput = document.getElementById('fontSize');
+        const lineHeightInput = document.getElementById('lineHeight');
         const marginInput = document.getElementById('marginSize');
-        const statusIndicator = document.getElementById('statusIndicator');
-        const downloadBtn = document.getElementById('downloadBtn');
+        const status = document.getElementById('status');
 
         function update() {
-            // Estilo visual da fonte
-            editor.style.fontFamily = fontSelect.value === 'times' ? "'Lora', serif" : "'Inter', sans-serif";
+            // Atualizar valores visuais
+            document.getElementById('fontSizeVal').innerText = fontSizeInput.value + 'pt';
+            document.getElementById('lineHeightVal').innerText = lineHeightInput.value;
+
+            // Aplicar estilos ao editor
+            editor.style.fontFamily = "'Lora', serif";
             editor.style.fontSize = fontSizeInput.value + 'pt';
+            editor.style.lineHeight = lineHeightInput.value;
             
             const m = marginInput.value;
-            pageFrame.style.padding = `${m}mm`;
+            pagePreview.style.padding = `${m}mm`;
 
-            // Verificação de espaço
+            // Validar se o texto cabe na página
             if (editor.scrollHeight > editor.clientHeight) {
-                statusIndicator.innerText = "ALERTA: TEXTO FORA DA PÁGINA";
-                statusIndicator.className = "p-3 rounded text-[11px] font-bold text-center bg-red-500/20 text-red-400 border border-red-500/50";
-                pageFrame.classList.add('overflow-error');
+                status.innerText = "ATENÇÃO: TEXTO FORA DA FOLHA";
+                status.className = "p-3 rounded text-[11px] font-bold text-center bg-red-500/10 text-red-400 border border-red-500/30";
+                pagePreview.classList.add('page-over');
             } else {
-                statusIndicator.innerText = "TUDO OK: CABE NA PÁGINA";
-                statusIndicator.className = "p-3 rounded text-[11px] font-bold text-center bg-green-500/20 text-green-400 border border-green-500/50";
-                pageFrame.classList.remove('overflow-error');
+                status.innerText = "TUDO OK: O TEXTO CABE NA PÁGINA";
+                status.className = "p-3 rounded text-[11px] font-bold text-center bg-green-500/10 text-green-400 border border-green-500/30";
+                pagePreview.classList.remove('page-over');
             }
         }
 
-        [fontSelect, fontSizeInput, marginInput].forEach(el => el.addEventListener('input', update));
+        [fontSizeInput, lineHeightInput, marginInput].forEach(el => el.addEventListener('input', update));
         editor.addEventListener('input', update);
 
-        downloadBtn.onclick = () => {
+        document.getElementById('downloadBtn').onclick = () => {
             const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
             
             const margin = parseFloat(marginInput.value);
             const size = parseInt(fontSizeInput.value);
-            const font = fontSelect.value;
+            const lh = parseFloat(lineHeightInput.value);
             const text = editor.innerText;
 
-            doc.setFont(font, "normal");
+            doc.setFont("times", "normal");
             doc.setFontSize(size);
 
             const pageWidth = doc.internal.pageSize.getWidth();
             const maxLineWidth = pageWidth - (margin * 2);
 
-            // Importante: Split com largura corrigida
-            const splitText = doc.splitTextToSize(text, maxLineWidth);
-            
-            // O espaçamento de linha no jsPDF por padrão é pequeno. 
-            // Vamos forçar um espaçamento de 1.5 a 1.8 vezes o tamanho da fonte.
-            const lineHeight = size * 0.6; 
-            let y = margin + (size / 2);
+            // Dividir o texto em parágrafos para manter o espaçamento entre eles
+            const paragraphs = text.split('\n');
+            let y = margin + (size / 3);
 
-            splitText.forEach(line => {
-                if (y < (297 - margin)) {
-                    doc.text(line, margin, y);
-                    y += lineHeight;
-                }
+            paragraphs.forEach(p => {
+                const lines = doc.splitTextToSize(p, maxLineWidth);
+                lines.forEach(line => {
+                    if (y < (297 - margin)) {
+                        doc.text(line, margin, y);
+                        // O segredo está aqui: o salto de linha no PDF agora respeita o LH do editor
+                        y += (size * 0.35 * lh); 
+                    }
+                });
+                // Adiciona um pequeno espaço extra entre parágrafos para não ficar tudo colado
+                y += 2; 
             });
 
-            doc.save(`Trabalho_Quilombola.pdf`);
+            doc.save(`Trabalho_Finalizado.pdf`);
         };
 
         window.onload = update;
